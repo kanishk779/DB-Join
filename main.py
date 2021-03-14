@@ -27,9 +27,15 @@ class MergeJoin:
         self.right_tuple_size = len(x.readline())
         x.close()
 
+    def write_out(self):
+        out_file = open('output.txt', 'a')
+        for line in self.buffer:
+            out_file.write(line)
+        self.buffer = []
+        
     def phase_one(self):
         left_file_size = os.stat(self.left_relation).st_size
-        read_till = self.m * self.tuples * self.tuple_size
+        read_till = self.m * self.tuples * self.left_tuple_size
         files_to_be_created = math.ceil(left_file_size / read_till)
         print('left size : {a}'.format(a=left_file_size))
         print('files to be created : {a}'.format(a=files_to_be_created))
@@ -54,6 +60,7 @@ class MergeJoin:
         files_to_be_created = math.ceil(right_file_size / read_till)
         self.right_sublist = files_to_be_created
         right = open(self.right_relation, 'r')
+        read_till = self.m * self.tuples * self.right_tuple_size
         for i in range(files_to_be_created):
             arr = right.readlines(read_till-1)
             dump_file = open(self.right_relation + str(i), 'w')
@@ -72,19 +79,43 @@ class MergeJoin:
 
     def initialise_list(self):
         # read one block from each of the sorted file
-        to_read = self.tuples * self.tuple_size
+        to_read = self.tuples * self.left_tuple_size
         for i in range(self.left_sublist):
             file = open(self.left_relation, 'r')
             arr = file.readlines(to_read - 1)
             self.left_memory.append(arr)
             file.close()
+        to_read = self.tuples * self.right_tuple_size
         for i in range(self.right_sublist):
             file = open(self.right_relation, 'r')
             arr = file.readlines(to_read - 1)
             self.right_memory.append(arr)
             file.close()
 
-    
+    def join(self):
+        # find the minimum from the above
+        left_min = "~"  # since it is the largest character
+        for i in range(self.left_sublist):
+            temp = self.left_memory[i][0]
+            temp = temp[:-1]
+            x, y = temp.split(' ')
+            if y < left_min:
+                left_min = y
+        right_min = "~"
+        for i in range(self.right_sublist):
+            temp = self.right_memory[i][0]
+            temp = temp[:-1]
+            y, z = temp.split(' ')
+            if y < right_min:
+                right_min = y
+        if left_min < right_min:
+            pass
+        else:
+            pass
+
+        # collect all the tuples with Y = the above found minimum
+
+        # use O(N^2) for producing all the tuples and stores
 
 
 if __name__ == '__main__':
