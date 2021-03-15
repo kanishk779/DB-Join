@@ -23,6 +23,9 @@ class MergeJoin:
         self.right_file_list = []
         self.left_sublist_read = []  # how much data we have actually read from each left sublist
         self.right_sublist_read = []  # how much data we have actually read from each right sublist
+        self.get_next_index = 0
+        self.read_file = open('output.txt', 'r')
+        self.FOUND = True
         self.find_tuple_size()
 
     def find_tuple_size(self):
@@ -38,6 +41,30 @@ class MergeJoin:
         for line in self.buffer:
             out_file.write(line)
         self.buffer = []
+
+    def iterator_open(self):
+        self.phase_one()
+
+    def get_next(self):
+        if self.get_next_index == self.tuples:
+            arr = self.read_file.readlines(self.tuples * self.left_tuple_size)  # we can choose either left or right
+            if len(arr) == 0:
+                print('All data has been read')
+                self.FOUND = False
+            else:
+                self.buffer = arr
+                self.get_next_index = 1
+                return self.buffer[self.get_next_index - 1]
+        else:
+            self.get_next_index += 1
+            return self.buffer[self.get_next_index - 1]
+
+    def close(self):
+        self.read_file.close()
+        for i in range(self.left_sublist):
+            self.left_file_list[i].close()
+        for i in range(self.right_sublist):
+            self.right_file_list[i].close()
 
     def phase_one(self):
         left_file_size = os.stat(self.left_relation).st_size
@@ -176,7 +203,23 @@ class MergeJoin:
         else:
             # the left min will join with all the right ones
             self.join_right(xx, left_min)
-            
+            for i in range(self.left_sublist):
+                ind = self.left_sublist_offsets[i]
+                temp = self.left_memory[i][ind]
+                temp = temp[:-1]
+                x, y = temp.split(' ')
+                if y == left_min:
+                    ind += 1
+                    self.left_sublist_offsets[i] += 1
+                    if ind == len(self.left_memory[i]):
+                        self.left_sublist_offsets[i] = 0
+                        to_read = self.tuples * self.left_tuple_size
+                        arr = self.left_file_list[i].readlines(to_read - 1)
+                        if len(arr) == 0:
+                            left_not_processed[i] = 0
+                        else:
+                            self.left_memory[i] = arr
+                    break
 
         # collect all the tuples with Y = the above found minimum
 
