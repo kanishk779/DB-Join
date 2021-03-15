@@ -17,6 +17,10 @@ class MergeJoin:
         self.left_memory = []  # stores the left sorted sublist first blocks
         self.right_memory = []  # stores the right sorted sublist first blocks
         self.buffer = []  # one extra buffer for output purpose
+        self.left_sublist_offsets = []
+        self.right_sublist_offsets = []
+        self.left_file_list = []
+        self.right_file_list = []
         self.find_tuple_size()
 
     def find_tuple_size(self):
@@ -32,7 +36,7 @@ class MergeJoin:
         for line in self.buffer:
             out_file.write(line)
         self.buffer = []
-        
+
     def phase_one(self):
         left_file_size = os.stat(self.left_relation).st_size
         read_till = self.m * self.tuples * self.left_tuple_size
@@ -40,6 +44,7 @@ class MergeJoin:
         print('left size : {a}'.format(a=left_file_size))
         print('files to be created : {a}'.format(a=files_to_be_created))
         self.left_sublist = files_to_be_created
+        self.left_sublist_offsets = [0] * files_to_be_created  # initially all the sublist start from first block
         left = open(self.left_relation, 'r')
         for i in range(files_to_be_created):
             arr = left.readlines(read_till-1)  # need to subtract one otherwise one more line will be read
@@ -56,11 +61,12 @@ class MergeJoin:
                 dump_file.write(to_write + '\n')
             dump_file.close()
         left.close()
+        read_till = self.m * self.tuples * self.right_tuple_size
         right_file_size = os.stat(self.right_relation).st_size
         files_to_be_created = math.ceil(right_file_size / read_till)
+        self.right_sublist_offsets = [0] * files_to_be_created  # initially all the sublist start from first block
         self.right_sublist = files_to_be_created
         right = open(self.right_relation, 'r')
-        read_till = self.m * self.tuples * self.right_tuple_size
         for i in range(files_to_be_created):
             arr = right.readlines(read_till-1)
             dump_file = open(self.right_relation + str(i), 'w')
@@ -81,35 +87,86 @@ class MergeJoin:
         # read one block from each of the sorted file
         to_read = self.tuples * self.left_tuple_size
         for i in range(self.left_sublist):
-            file = open(self.left_relation, 'r')
+            file = open(self.left_relation + str(i), 'r')
             arr = file.readlines(to_read - 1)
             self.left_memory.append(arr)
-            file.close()
+            self.left_file_list.append(file)
         to_read = self.tuples * self.right_tuple_size
         for i in range(self.right_sublist):
-            file = open(self.right_relation, 'r')
+            file = open(self.right_relation + str(i), 'r')
             arr = file.readlines(to_read - 1)
             self.right_memory.append(arr)
-            file.close()
+            self.right_file_list.append(file)
 
     def join(self):
         # find the minimum from the above
+        left_not_processed = [1] * self.left_sublist
+        right_not_processed = [1] * self.right_sublist
+        while any(left_not_processed) and any(right_not_processed):
+            pass
         left_min = "~"  # since it is the largest character
         for i in range(self.left_sublist):
-            temp = self.left_memory[i][0]
+            if left_not_processed[i] == 0:
+                continue
+            ind = self.left_sublist_offsets[i]
+            if ind == len(self.left_memory[i]):
+                # re fill the block
+                to_read = self.tuples * self.left_tuple_size
+                arr = self.left_file_list[i].readlines(to_read - 1)
+                if len(arr) == 0:
+                    left_not_processed[i] = 0
+                    continue
+                ind = 0
+                self.left_memory[i] = arr
+            temp = self.left_memory[i][ind]
             temp = temp[:-1]
             x, y = temp.split(' ')
             if y < left_min:
                 left_min = y
         right_min = "~"
         for i in range(self.right_sublist):
-            temp = self.right_memory[i][0]
+            if right_not_processed[i] == 0:
+                continue
+            ind = self.right_sublist_offsets[i]
+            if ind == len(self.right_memory[i]):
+                # re fill the block
+                to_read = self.tuples * self.right_tuple_size
+                arr = self.right_file_list[i].readlines(to_read - 1)
+                if len(arr) == 0:
+                    right_not_processed[i] = 0
+                    continue
+                ind = 0
+                self.left_memory[i] = arr
+            temp = self.right_memory[i][ind]
             temp = temp[:-1]
             y, z = temp.split(' ')
             if y < right_min:
                 right_min = y
+
         if left_min < right_min:
-            pass
+            for i in range(self.left_sublist):
+                ind = self.left_sublist_offsets[i]
+                while ind < len(self.left_memory[i]):
+                    temp = self.left_memory[i][ind]
+                    temp = temp[:-1]
+                    x, y = temp.split(' ')
+                    if y == left_min:
+                        self.left_sublist_offsets[i] += 1
+                        ind += 1
+                    else:
+                        break
+        elif right_min < left_min:
+            for i in range(self.right_sublist):
+                ind = self.right_sublist_offsets[i]
+                while ind < len(self.right_memory[i]):
+                    temp = self.right_memory[i][ind]
+                    temp = temp[:-1]
+                    y, z = temp.split(' ')
+                    if y == right_min:
+                        self.right_sublist_offsets[i] += 1
+                        ind += 1
+                    else:
+                        break
         else:
             pass
 
