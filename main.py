@@ -257,6 +257,7 @@ class MergeJoin:
                     ind = 0
                 temp = temp_mem[ind]
                 y, z = temp.split(' ')
+            self.write_out()  # write whatever is left
 
 
 class HashJoin:
@@ -282,7 +283,59 @@ class HashJoin:
         x.close()
 
     def open(self):
-        pass
+        file = open(self.left_relation, 'r')
+        hashed_list = dict()
+        while True:
+            to_read = self.tuples * self.left_tuple_size
+            arr = file.readlines(to_read-1)
+            if len(arr) == 0:
+                break
+            for line in arr:
+                temp = line[:-1]
+                x, y = temp.split(' ')
+                num = self.give_hash(y)
+                hashed_list[num].append(line)
+                if len(hashed_list[num]) == self.tuples:
+                    append_file = open(self.left_relation + str(num), 'a')
+                    for data in hashed_list[num]:
+                        append_file.write(data)
+                    hashed_list[num] = []
+        for i in range(self.m):
+            append_file = open(self.left_relation + str(i), 'a')
+            for data in hashed_list[i]:
+                append_file.write(data)
+            hashed_list[i] = []
+            append_file.close()
+
+        file = open(self.right_relation, 'r')
+        while True:
+            to_read = self.tuples * self.right_tuple_size
+            arr = file.readlines(to_read - 1)
+            if len(arr) == 0:
+                break
+            for line in arr:
+                y, z = line.split(' ')
+                num = self.give_hash(y)
+                hashed_list[num].append(line)
+                if len(hashed_list[num]) == self.tuples:
+                    append_file = open(self.right_relation + str(num), 'a')
+                    for data in hashed_list[num]:
+                        append_file.write(data)
+                    hashed_list[num] = []
+        for i in range(self.m):
+            append_file = open(self.right_relation + str(i), 'a')
+            for data in hashed_list[i]:
+                append_file.write(data)
+            hashed_list[i] = []
+            append_file.close()
+
+
+
+
+    @staticmethod
+    def give_hash(y):
+        # returns an integer
+        return 0
 
 
 if __name__ == '__main__':
