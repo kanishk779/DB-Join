@@ -259,6 +259,31 @@ class MergeJoin:
                 y, z = temp.split(' ')
 
 
+class HashJoin:
+
+    def __init__(self, m, left_relation, right_relation, tuples):
+        self.m = m  # main memory buffers
+        self.tuples = tuples  # number of tuples in one block
+        self.left_tuple_size = 0  # size of each tuple in bytes for left relation
+        self.right_tuple_size = 0  # size of each tuple in bytes for right relation
+        self.left_relation = left_relation  # name of left relation
+        self.right_relation = right_relation  # name of right relation
+        self.get_next_index = 0
+        self.read_file = open('output.txt', 'r')
+        self.FOUND = True
+        self.find_tuple_size()
+
+    def find_tuple_size(self):
+        x = open(self.left_relation, 'r')
+        self.left_tuple_size = len(x.readline())
+        x.close()
+        x = open(self.right_relation, 'r')
+        self.right_tuple_size = len(x.readline())
+        x.close()
+
+    def open(self):
+        pass
+
 
 if __name__ == '__main__':
     left_file = sys.argv[1]
