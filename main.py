@@ -271,6 +271,7 @@ class HashJoin:
         self.right_relation = right_relation  # name of right relation
         self.get_next_index = 0
         self.read_file = open('output.txt', 'r')
+        self.buffer = []  # one extra buffer for output purpose, list of strings
         self.FOUND = True
         self.find_tuple_size()
 
@@ -281,6 +282,12 @@ class HashJoin:
         x = open(self.right_relation, 'r')
         self.right_tuple_size = len(x.readline())
         x.close()
+
+    def write_out(self):
+        out_file = open('output.txt', 'a')
+        for line in self.buffer:
+            out_file.write(line)
+        self.buffer = []
 
     def open(self):
         file = open(self.left_relation, 'r')
@@ -351,8 +358,23 @@ class HashJoin:
                     else:
                         search_structure[y] = [x]  # initialise a list if not present
                 # read each block of right relation and for each tuple find all tuples which can join
-                right_buffer = []
-                
+                right_f = open(self.right_relation + str(i), 'r')
+                while True:
+                    right_buffer = right_f.readlines(self.tuples * self.right_tuple_size)
+                    if len(right_buffer) > 0:
+                        for line in right_buffer:
+                            # use the search_structure
+                            y, z = line.split(' ')
+                            if y in search_structure:
+                                for x in search_structure[y]:
+                                    to_write = x + ' ' + y + ' ' + z
+                                    self.buffer.append(to_write)
+                                    if len(self.buffer) > self.tuples:
+                                        self.write_out()
+                            else:
+                                pass
+                    else:
+                        break
             else:
                 right_f = open(self.right_relation + str(i), 'r')
                 lines = right_f.readlines()
