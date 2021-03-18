@@ -45,9 +45,8 @@ class MergeJoin:
     def open(self):
         left_file_size = os.stat(self.left_relation).st_size
         right_file_size = os.stat(self.right_relation).st_size
-        block_left = left_file_size // (self.tuples * self.left_tuple_size)
-        block_right = right_file_size // (self.tuples * self.right_tuple_size)
-        print('sum of blocks : {a}'.format(a=block_right+block_left))
+        block_left = (left_file_size + self.tuples * self.left_tuple_size - 1) // (self.tuples * self.left_tuple_size)
+        block_right = (right_file_size + self.tuples * self.right_tuple_size - 1) // (self.tuples * self.right_tuple_size)
         if block_left + block_right < (self.m * self.m):
             self.phase_one()
         else:
@@ -78,8 +77,7 @@ class MergeJoin:
         left_file_size = os.stat(self.left_relation).st_size
         read_till = self.m * self.tuples * self.left_tuple_size
         files_to_be_created = math.ceil(left_file_size / read_till)
-        print('left size : {a}'.format(a=left_file_size))
-        print('files to be created : {a}'.format(a=files_to_be_created))
+        
         self.left_sublist = files_to_be_created
         self.left_sublist_offsets = [0] * files_to_be_created  # initially all the sublist start from first block
         left = open(self.left_relation, 'r')
@@ -147,7 +145,7 @@ class MergeJoin:
             left_min = "~"  # since it is the largest character
             for i in range(self.left_sublist):
                 if left_not_processed[i] == 0:
-                    continue
+                    continue  # continue if the sublist has been completely read
                 ind = self.left_sublist_offsets[i]
                 if ind == len(self.left_memory[i]):
                     # re fill the block
@@ -186,12 +184,10 @@ class MergeJoin:
                 if y < right_min:
                     right_min = y
 
-            # print('left_min : {a}'.format(a=left_min))
-            # print('right_min : {a}'.format(a=right_min))
             if left_min < right_min:
-                cnt += 1
                 for i in range(self.left_sublist):
                     ind = self.left_sublist_offsets[i]
+                    # remove all the tuples with Y = left_min
                     while ind < len(self.left_memory[i]):
                         temp = self.left_memory[i][ind]
                         temp = temp[:-1]
@@ -202,9 +198,9 @@ class MergeJoin:
                         else:
                             break
             elif right_min < left_min:
-                cnt += 1
                 for i in range(self.right_sublist):
                     ind = self.right_sublist_offsets[i]
+                    # remove all the tuple with Y = right_min
                     while ind < len(self.right_memory[i]):
                         temp = self.right_memory[i][ind]
                         temp = temp[:-1]
@@ -217,9 +213,19 @@ class MergeJoin:
                             break
             else:
                 # the left min will join with all the right ones
+                # just remove only one tuple with Y = left_min
                 self.join_right(xx, left_min)
                 for i in range(self.left_sublist):
                     ind = self.left_sublist_offsets[i]
+                    if ind == len(self.left_memory[i]):
+                        to_read = self.tuples * self.left_tuple_size
+                        arr = self.left_file_list[i].readlines(to_read - 1)
+                        self.left_sublist_offsets[i] = 0
+                        ind = 0
+                        if len(arr) == 0:
+                            left_not_processed[i] = 0
+                        else:
+                            self.left_memory[i] = arr
                     temp = self.left_memory[i][ind]
                     temp = temp[:-1]
                     x, y = temp.split(' ')
@@ -235,7 +241,6 @@ class MergeJoin:
                             else:
                                 self.left_memory[i] = arr
                         break
-        print(cnt)
         # collect all the tuples with Y = the above found minimum
 
     def join_right(self, xx, left_y):
@@ -479,15 +484,18 @@ class HashJoin:
 if __name__ == '__main__':
     left_file = sys.argv[1]
     right_file = sys.argv[2]
-    memory_buffers = int(sys.argv[3])
+    which = sys.argv[3]
+    memory_buffers = int(sys.argv[4])
     temp_file2 = open('temp2.txt', 'r+')
     temp_file2.truncate(0)
     # to get the tuple size we need to read one line from the file
-    merge_join = MergeJoin(memory_buffers, left_file, right_file, 4)
-    merge_join.open()
-    merge_join.join()
-    merge_join.close()
-    # hash_join = HashJoin(memory_buffers, left_file, right_file, 2)
-    # hash_join.open()
-    # hash_join.join()
-    # hash_join.close()
+    if which == 'sort':
+        merge_join = MergeJoin(memory_buffers, left_file, right_file, 40)
+        merge_join.open()
+        merge_join.join()
+        merge_join.close()
+    else:
+        hash_join = HashJoin(memory_buffers, left_file, right_file, 40)
+        hash_join.open()
+        hash_join.join()
+        hash_join.close()
