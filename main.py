@@ -329,8 +329,42 @@ class HashJoin:
             hashed_list[i] = []
             append_file.close()
 
-
-
+    def join(self):
+        # we can assume that the R_i or S_i will fill in the main memory
+        # read page 294
+        # since we have hashed into self.m buckets, we need to iterate over each of them
+        for i in range(self.m):
+            # get the sizes of R_i and S_i and load the smaller one into the memory
+            left_file_size = os.stat(self.left_relation + str(i)).st_size
+            right_file_size = os.stat(self.right_relation + str(i)).st_size
+            if left_file_size < right_file_size:
+                left_f = open(self.left_relation + str(i), 'r')
+                lines = left_f.readlines()
+                # create a search structure over the common column i.e Y
+                # a dict with key = Y and a list of all the X values
+                search_structure = dict()
+                for line in lines:
+                    temp = line[:-1]
+                    x, y = temp.split(' ')
+                    if y in search_structure:
+                        search_structure[y].append(x)
+                    else:
+                        search_structure[y] = [x]  # initialise a list if not present
+                # read each block of right relation and for each tuple find all tuples which can join
+                right_buffer = []
+                
+            else:
+                right_f = open(self.right_relation + str(i), 'r')
+                lines = right_f.readlines()
+                search_structure = dict()
+                for line in lines:
+                    temp = line[:-1]
+                    y, z = temp.split(' ')
+                    if y in search_structure:
+                        search_structure[y].append(z)
+                    else:
+                        search_structure[y] = [z]
+        pass
 
     @staticmethod
     def give_hash(y):
