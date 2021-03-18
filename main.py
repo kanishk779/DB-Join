@@ -47,7 +47,7 @@ class MergeJoin:
 
     def get_next(self):
         if self.get_next_index == self.tuples:
-            arr = self.read_file.readlines(self.tuples * self.left_tuple_size)  # we can choose either left or right
+            arr = self.read_file.readlines(self.tuples * self.left_tuple_size - 1)  # we can choose either left or right
             if len(arr) == 0:
                 print('All data has been read')
                 self.FOUND = False
@@ -289,6 +289,20 @@ class HashJoin:
             out_file.write(line)
         self.buffer = []
 
+    def get_next(self):
+        if self.get_next_index == self.tuples:
+            arr = self.read_file.readlines(self.tuples * self.left_tuple_size - 1)  # we can choose either left or right
+            if len(arr) == 0:
+                print('All data has been read')
+                self.FOUND = False
+            else:
+                self.buffer = arr
+                self.get_next_index = 1
+                return self.buffer[self.get_next_index - 1]
+        else:
+            self.get_next_index += 1
+            return self.buffer[self.get_next_index - 1]
+        
     def open(self):
         file = open(self.left_relation, 'r')
         hashed_list = dict()
@@ -307,12 +321,14 @@ class HashJoin:
                     for data in hashed_list[num]:
                         append_file.write(data)
                     hashed_list[num] = []
+                    append_file.close()  # close the file
         for i in range(self.m):
             append_file = open(self.left_relation + str(i), 'a')
             for data in hashed_list[i]:
                 append_file.write(data)
             hashed_list[i] = []
             append_file.close()
+        file.close()
 
         file = open(self.right_relation, 'r')
         while True:
@@ -329,12 +345,14 @@ class HashJoin:
                     for data in hashed_list[num]:
                         append_file.write(data)
                     hashed_list[num] = []
+                    append_file.close()  # close the file
         for i in range(self.m):
             append_file = open(self.right_relation + str(i), 'a')
             for data in hashed_list[i]:
                 append_file.write(data)
             hashed_list[i] = []
             append_file.close()
+        file.close()
 
     def join(self):
         # we can assume that the R_i or S_i will fill in the main memory
@@ -360,7 +378,7 @@ class HashJoin:
                 # read each block of right relation and for each tuple find all tuples which can join
                 right_f = open(self.right_relation + str(i), 'r')
                 while True:
-                    right_buffer = right_f.readlines(self.tuples * self.right_tuple_size)
+                    right_buffer = right_f.readlines(self.tuples * self.right_tuple_size - 1)
                     if len(right_buffer) > 0:
                         for line in right_buffer:
                             # use the search_structure
@@ -373,6 +391,7 @@ class HashJoin:
                                         self.write_out()
                             else:
                                 pass
+                        self.write_out()  # write the remaining data in buffer to the disk
                     else:
                         break
             else:
@@ -380,13 +399,30 @@ class HashJoin:
                 lines = right_f.readlines()
                 search_structure = dict()
                 for line in lines:
-                    temp = line[:-1]
-                    y, z = temp.split(' ')
+                    y, z = line.split(' ')
                     if y in search_structure:
                         search_structure[y].append(z)
                     else:
                         search_structure[y] = [z]
-        pass
+                left_f = open(self.left_relation + str(i), 'r')
+                while True:
+                    left_buffer = left_f.readlines(self.tuples * self.left_tuple_size - 1)
+                    if len(left_buffer) > 0:
+                        for line in left_buffer:
+                            # use search_structure
+                            temp = line[:-1]
+                            x, y = temp.split(' ')
+                            if y in search_structure:
+                                for z in search_structure[y]:
+                                    to_write = x + ' ' + y + ' ' + z
+                                    self.buffer.append(to_write)
+                                    if len(self.buffer) > self.tuples:
+                                        self.write_out()
+                            else:
+                                pass
+                        self.write_out()  # write the remaining data in buffer to the disk
+                    else:
+                        break
 
     @staticmethod
     def give_hash(y):
