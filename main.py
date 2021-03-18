@@ -42,8 +42,15 @@ class MergeJoin:
             out_file.write(line)
         self.buffer = []
 
-    def iterator_open(self):
-        self.phase_one()
+    def open(self):
+        left_file_size = os.stat(self.left_relation).st_size
+        right_file_size = os.stat(self.right_relation).st_size
+        block_left = left_file_size // (self.tuples * self.left_tuple_size)
+        block_right = right_file_size // (self.tuples * self.right_tuple_size)
+        if block_left + block_right < (self.m * self.m):
+            self.phase_one()
+        else:
+            raise NotImplementedError('Not possible as B(R) + B(S) >= M')
 
     def get_next(self):
         if self.get_next_index == self.tuples:
@@ -131,96 +138,100 @@ class MergeJoin:
 
     def join(self):
         # find the minimum from the above
+        self.initialise_list()
         left_not_processed = [1] * self.left_sublist
         right_not_processed = [1] * self.right_sublist
-        xx = ""
+        print(left_not_processed)
+        cnt = 0
         while any(left_not_processed) and any(right_not_processed):
-            pass
-        left_min = "~"  # since it is the largest character
-        for i in range(self.left_sublist):
-            if left_not_processed[i] == 0:
-                continue
-            ind = self.left_sublist_offsets[i]
-            if ind == len(self.left_memory[i]):
-                # re fill the block
-                to_read = self.tuples * self.left_tuple_size
-                arr = self.left_file_list[i].readlines(to_read - 1)
-                if len(arr) == 0:
-                    left_not_processed[i] = 0
-                    continue
-                ind = 0
-                self.left_memory[i] = arr
-            temp = self.left_memory[i][ind]
-            temp = temp[:-1]
-            x, y = temp.split(' ')
-            if y < left_min:
-                left_min = y
-                xx = x
-        right_min = "~"
-        for i in range(self.right_sublist):
-            if right_not_processed[i] == 0:
-                continue
-            ind = self.right_sublist_offsets[i]
-            if ind == len(self.right_memory[i]):
-                # re fill the block
-                to_read = self.tuples * self.right_tuple_size
-                arr = self.right_file_list[i].readlines(to_read - 1)
-                if len(arr) == 0:
-                    right_not_processed[i] = 0
-                    continue
-                ind = 0
-                self.left_memory[i] = arr
-            temp = self.right_memory[i][ind]
-            temp = temp[:-1]
-            y, z = temp.split(' ')
-            if y < right_min:
-                right_min = y
-
-        if left_min < right_min:
+            xx = ""
+            left_min = "~"  # since it is the largest character
             for i in range(self.left_sublist):
+                if left_not_processed[i] == 0:
+                    continue
                 ind = self.left_sublist_offsets[i]
-                while ind < len(self.left_memory[i]):
+                if ind == len(self.left_memory[i]):
+                    # re fill the block
+                    to_read = self.tuples * self.left_tuple_size
+                    arr = self.left_file_list[i].readlines(to_read - 1)
+                    if len(arr) == 0:
+                        left_not_processed[i] = 0
+                        continue
+                    ind = 0
+                    self.left_memory[i] = arr
+                temp = self.left_memory[i][ind]
+                temp = temp[:-1]
+                x, y = temp.split(' ')
+                if y < left_min:
+                    left_min = y
+                    xx = x
+            right_min = "~"
+            for i in range(self.right_sublist):
+                if right_not_processed[i] == 0:
+                    continue
+                ind = self.right_sublist_offsets[i]
+                if ind == len(self.right_memory[i]):
+                    # re fill the block
+                    to_read = self.tuples * self.right_tuple_size
+                    arr = self.right_file_list[i].readlines(to_read - 1)
+                    if len(arr) == 0:
+                        right_not_processed[i] = 0
+                        continue
+                    ind = 0
+                    self.left_memory[i] = arr
+                temp = self.right_memory[i][ind]
+                temp = temp[:-1]
+                y, z = temp.split(' ')
+                if y < right_min:
+                    right_min = y
+            if left_min < right_min:
+                cnt += 1
+                for i in range(self.left_sublist):
+                    ind = self.left_sublist_offsets[i]
+                    while ind < len(self.left_memory[i]):
+                        temp = self.left_memory[i][ind]
+                        temp = temp[:-1]
+                        x, y = temp.split(' ')
+                        if y == left_min:
+                            self.left_sublist_offsets[i] += 1
+                            ind += 1
+                        else:
+                            break
+            elif right_min < left_min:
+                cnt += 1
+                for i in range(self.right_sublist):
+                    ind = self.right_sublist_offsets[i]
+                    while ind < len(self.right_memory[i]):
+                        temp = self.right_memory[i][ind]
+                        temp = temp[:-1]
+                        y, z = temp.split(' ')
+                        if y == right_min:
+                            self.right_sublist_offsets[i] += 1
+                            ind += 1
+                        else:
+                            break
+            else:
+                # the left min will join with all the right ones
+                print("in joining")
+                self.join_right(xx, left_min)
+                for i in range(self.left_sublist):
+                    ind = self.left_sublist_offsets[i]
                     temp = self.left_memory[i][ind]
                     temp = temp[:-1]
                     x, y = temp.split(' ')
                     if y == left_min:
+                        ind += 1
                         self.left_sublist_offsets[i] += 1
-                        ind += 1
-                    else:
+                        if ind == len(self.left_memory[i]):
+                            self.left_sublist_offsets[i] = 0
+                            to_read = self.tuples * self.left_tuple_size
+                            arr = self.left_file_list[i].readlines(to_read - 1)
+                            if len(arr) == 0:
+                                left_not_processed[i] = 0
+                            else:
+                                self.left_memory[i] = arr
                         break
-        elif right_min < left_min:
-            for i in range(self.right_sublist):
-                ind = self.right_sublist_offsets[i]
-                while ind < len(self.right_memory[i]):
-                    temp = self.right_memory[i][ind]
-                    temp = temp[:-1]
-                    y, z = temp.split(' ')
-                    if y == right_min:
-                        self.right_sublist_offsets[i] += 1
-                        ind += 1
-                    else:
-                        break
-        else:
-            # the left min will join with all the right ones
-            self.join_right(xx, left_min)
-            for i in range(self.left_sublist):
-                ind = self.left_sublist_offsets[i]
-                temp = self.left_memory[i][ind]
-                temp = temp[:-1]
-                x, y = temp.split(' ')
-                if y == left_min:
-                    ind += 1
-                    self.left_sublist_offsets[i] += 1
-                    if ind == len(self.left_memory[i]):
-                        self.left_sublist_offsets[i] = 0
-                        to_read = self.tuples * self.left_tuple_size
-                        arr = self.left_file_list[i].readlines(to_read - 1)
-                        if len(arr) == 0:
-                            left_not_processed[i] = 0
-                        else:
-                            self.left_memory[i] = arr
-                    break
-
+        print(cnt)
         # collect all the tuples with Y = the above found minimum
 
     def join_right(self, xx, left_y):
@@ -307,6 +318,13 @@ class HashJoin:
         self.read_file.close()
 
     def open(self):
+        left_file_size = os.stat(self.left_relation).st_size
+        right_file_size = os.stat(self.right_relation).st_size
+        block_left = left_file_size // (self.tuples * self.left_tuple_size)
+        block_right = right_file_size // (self.tuples * self.right_tuple_size)
+        if block_left + block_right >= (self.m * self.m):
+            raise NotImplementedError('Not possible as B(R) + B(S) >= M')
+
         file = open(self.left_relation, 'r')
         hashed_list = dict()
         while True:
@@ -445,5 +463,7 @@ if __name__ == '__main__':
     right_file = sys.argv[2]
     memory_buffers = int(sys.argv[3])
     # to get the tuple size we need to read one line from the file
-    merge_join = MergeJoin(memory_buffers, left_file, right_file, 2)
-    merge_join.phase_one()
+    merge_join = MergeJoin(memory_buffers, left_file, right_file, 5)
+    merge_join.open()
+    merge_join.join()
+    merge_join.close()
