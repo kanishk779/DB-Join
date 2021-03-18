@@ -9,7 +9,8 @@ __pycache__/
 inputR*
 inputS*
 output.txt
-
+a.out
+outout.txt
 # Distribution / packaging
 .Python
 build/

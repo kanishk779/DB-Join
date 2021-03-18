@@ -81,7 +81,6 @@ class MergeJoin:
         print('files to be created : {a}'.format(a=files_to_be_created))
         self.left_sublist = files_to_be_created
         self.left_sublist_offsets = [0] * files_to_be_created  # initially all the sublist start from first block
-        self.left_sublist_read = [0] * files_to_be_created
         left = open(self.left_relation, 'r')
         for i in range(files_to_be_created):
             arr = left.readlines(read_till-1)  # need to subtract one otherwise one more line will be read
@@ -141,7 +140,6 @@ class MergeJoin:
         self.initialise_list()
         left_not_processed = [1] * self.left_sublist
         right_not_processed = [1] * self.right_sublist
-        print(left_not_processed)
         cnt = 0
         while any(left_not_processed) and any(right_not_processed):
             xx = ""
@@ -158,6 +156,7 @@ class MergeJoin:
                         left_not_processed[i] = 0
                         continue
                     ind = 0
+                    self.left_sublist_offsets[i] = ind
                     self.left_memory[i] = arr
                 temp = self.left_memory[i][ind]
                 temp = temp[:-1]
@@ -178,12 +177,16 @@ class MergeJoin:
                         right_not_processed[i] = 0
                         continue
                     ind = 0
-                    self.left_memory[i] = arr
+                    self.right_sublist_offsets[i] = ind
+                    self.right_memory[i] = arr
                 temp = self.right_memory[i][ind]
                 temp = temp[:-1]
                 y, z = temp.split(' ')
                 if y < right_min:
                     right_min = y
+
+            # print('left_min : {a}'.format(a=left_min))
+            # print('right_min : {a}'.format(a=right_min))
             if left_min < right_min:
                 cnt += 1
                 for i in range(self.left_sublist):
@@ -207,6 +210,7 @@ class MergeJoin:
                         y, z = temp.split(' ')
                         if y == right_min:
                             self.right_sublist_offsets[i] += 1
+                            self.right_sublist_read[i] += self.right_tuple_size
                             ind += 1
                         else:
                             break
@@ -336,7 +340,10 @@ class HashJoin:
                 temp = line[:-1]
                 x, y = temp.split(' ')
                 num = self.give_hash(y)
-                hashed_list[num].append(line)
+                if num in hashed_list:
+                    hashed_list[num].append(line)
+                else:
+                    hashed_list[num] = [line]
                 if len(hashed_list[num]) == self.tuples:
                     append_file = open(self.left_relation + str(num), 'a')
                     for data in hashed_list[num]:
@@ -360,7 +367,10 @@ class HashJoin:
             for line in arr:
                 y, z = line.split(' ')
                 num = self.give_hash(y)
-                hashed_list[num].append(line)
+                if num in hashed_list:
+                    hashed_list[num].append(line)
+                else:
+                    hashed_list[num] = [line]
                 if len(hashed_list[num]) == self.tuples:
                     append_file = open(self.right_relation + str(num), 'a')
                     for data in hashed_list[num]:
@@ -463,7 +473,11 @@ if __name__ == '__main__':
     right_file = sys.argv[2]
     memory_buffers = int(sys.argv[3])
     # to get the tuple size we need to read one line from the file
-    merge_join = MergeJoin(memory_buffers, left_file, right_file, 5)
-    merge_join.open()
-    merge_join.join()
-    merge_join.close()
+    # merge_join = MergeJoin(memory_buffers, left_file, right_file, 5)
+    # merge_join.open()
+    # merge_join.join()
+    # merge_join.close()
+    hash_join = HashJoin(memory_buffers, left_file, right_file, 5)
+    hash_join.open()
+    hash_join.join()
+    hash_join.close()
