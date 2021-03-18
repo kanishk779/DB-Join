@@ -10,6 +10,7 @@ inputR*
 inputS*
 output.txt
 a.out
+temp*
 outout.txt
 # Distribution / packaging
 .Python

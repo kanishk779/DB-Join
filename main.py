@@ -47,10 +47,11 @@ class MergeJoin:
         right_file_size = os.stat(self.right_relation).st_size
         block_left = left_file_size // (self.tuples * self.left_tuple_size)
         block_right = right_file_size // (self.tuples * self.right_tuple_size)
+        print('sum of blocks : {a}'.format(a=block_right+block_left))
         if block_left + block_right < (self.m * self.m):
             self.phase_one()
         else:
-            raise NotImplementedError('Not possible as B(R) + B(S) >= M')
+            raise NotImplementedError('Not possible as B(R) + B(S) >= M^2')
 
     def get_next(self):
         if self.get_next_index == self.tuples:
@@ -216,7 +217,6 @@ class MergeJoin:
                             break
             else:
                 # the left min will join with all the right ones
-                print("in joining")
                 self.join_right(xx, left_min)
                 for i in range(self.left_sublist):
                     ind = self.left_sublist_offsets[i]
@@ -252,6 +252,14 @@ class MergeJoin:
         for i in range(self.right_sublist):
             ind = self.right_sublist_offsets[i]
             temp_mem = self.right_memory[i]
+            if ind == len(temp_mem):
+                to_read = self.tuples * self.right_tuple_size
+                arr = files[i].readlines(to_read - 1)
+                if len(arr) == 0:
+                    continue
+                else:
+                    temp_mem = arr
+                ind = 0
             temp = temp_mem[ind]
             y, z = temp.split(' ')
 
@@ -324,10 +332,10 @@ class HashJoin:
     def open(self):
         left_file_size = os.stat(self.left_relation).st_size
         right_file_size = os.stat(self.right_relation).st_size
-        block_left = left_file_size // (self.tuples * self.left_tuple_size)
-        block_right = right_file_size // (self.tuples * self.right_tuple_size)
+        block_left = (left_file_size + self.tuples*self.left_tuple_size - 1) // (self.tuples * self.left_tuple_size)
+        block_right = (right_file_size + self.tuples*self.right_tuple_size - 1) // (self.tuples * self.right_tuple_size)
         if block_left + block_right >= (self.m * self.m):
-            raise NotImplementedError('Not possible as B(R) + B(S) >= M')
+            raise NotImplementedError('Not possible as B(R) + B(S) >= M^2')
 
         file = open(self.left_relation, 'r')
         hashed_list = dict()
@@ -472,12 +480,14 @@ if __name__ == '__main__':
     left_file = sys.argv[1]
     right_file = sys.argv[2]
     memory_buffers = int(sys.argv[3])
+    temp_file2 = open('temp2.txt', 'r+')
+    temp_file2.truncate(0)
     # to get the tuple size we need to read one line from the file
-    # merge_join = MergeJoin(memory_buffers, left_file, right_file, 5)
-    # merge_join.open()
-    # merge_join.join()
-    # merge_join.close()
-    hash_join = HashJoin(memory_buffers, left_file, right_file, 5)
-    hash_join.open()
-    hash_join.join()
-    hash_join.close()
+    merge_join = MergeJoin(memory_buffers, left_file, right_file, 4)
+    merge_join.open()
+    merge_join.join()
+    merge_join.close()
+    # hash_join = HashJoin(memory_buffers, left_file, right_file, 2)
+    # hash_join.open()
+    # hash_join.join()
+    # hash_join.close()
