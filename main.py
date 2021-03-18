@@ -302,7 +302,10 @@ class HashJoin:
         else:
             self.get_next_index += 1
             return self.buffer[self.get_next_index - 1]
-        
+
+    def close(self):
+        self.read_file.close()
+
     def open(self):
         file = open(self.left_relation, 'r')
         hashed_list = dict()
@@ -424,10 +427,17 @@ class HashJoin:
                     else:
                         break
 
-    @staticmethod
-    def give_hash(y):
+    def give_hash(self, y):
         # returns an integer
-        return 0
+        power_p = 1
+        p = 31
+        mod = self.m
+        hash_val = 0
+        for char in y:
+            hash_val = (hash_val + (ord(char) - 96)*power_p) % mod
+            power_p = (power_p * p) % mod
+
+        return hash_val
 
 
 if __name__ == '__main__':
