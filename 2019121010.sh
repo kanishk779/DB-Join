@@ -1,5 +1,4 @@
 #!/bin/bash
-java -jar JoinGenerator.jar 3000 4000 3 3 3
 g++ -std=c++11 checker.cpp
 ./a.out $1 $2 outout.txt
 python3 main.py $1 $2 $3 $4

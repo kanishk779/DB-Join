@@ -25,9 +25,15 @@ class MergeJoin:
         self.left_sublist_read = []  # how much data we have actually read from each left sublist
         self.right_sublist_read = []  # how much data we have actually read from each right sublist
         self.get_next_index = 0
-        self.read_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'r')
+        self.output_file = self.give_output_file_name()
+        self.read_file = open(self.output_file, 'r')
         self.FOUND = True
         self.find_tuple_size()
+
+    def give_output_file_name(self):
+        left = os.path.basename(self.left_relation)
+        right = os.path.basename(self.right_relation)
+        return left + '_' + right + '_join.txt'
 
     def find_tuple_size(self):
         x = open(self.left_relation, 'r')
@@ -38,7 +44,7 @@ class MergeJoin:
         x.close()
 
     def write_out(self):
-        out_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'a')
+        out_file = open(self.output_file, 'a')
         for line in self.buffer:
             out_file.write(line)
         self.buffer = []
@@ -80,6 +86,7 @@ class MergeJoin:
         files_to_be_created = math.ceil(left_file_size / read_till)
         
         self.left_sublist = files_to_be_created
+        print(files_to_be_created)
         self.left_sublist_offsets = [0] * files_to_be_created  # initially all the sublist start from first block
         left = open(self.left_relation, 'r')
         for i in range(files_to_be_created):
@@ -298,7 +305,8 @@ class HashJoin:
         self.left_relation = left_relation  # name of left relation
         self.right_relation = right_relation  # name of right relation
         self.get_next_index = 0
-        self.read_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'r')
+        self.output_file = self.give_output_file_name()
+        self.read_file = open(self.output_file, 'r')
         self.buffer = []  # one extra buffer for output purpose, list of strings
         self.FOUND = True
         self.find_tuple_size()
@@ -311,8 +319,13 @@ class HashJoin:
         self.right_tuple_size = len(x.readline())
         x.close()
 
+    def give_output_file_name(self):
+        left = os.path.basename(self.left_relation)
+        right = os.path.basename(self.right_relation)
+        return left + '_' + right + '_join.txt'
+
     def write_out(self):
-        out_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'a')
+        out_file = open(self.output_file, 'a')
         for line in self.buffer:
             out_file.write(line)
         self.buffer = []
@@ -337,6 +350,7 @@ class HashJoin:
     def open(self):
         file = open(self.left_relation, 'r')
         hashed_list = dict()
+
         while True:
             to_read = self.tuples * self.left_tuple_size
             arr = file.readlines(to_read-1)
@@ -357,6 +371,8 @@ class HashJoin:
                     hashed_list[num] = []
                     append_file.close()  # close the file
         for i in range(self.m):
+            if i not in hashed_list:  # if there was nothing hashed in this bucket
+                continue
             append_file = open(self.left_relation + str(i), 'a')
             for data in hashed_list[i]:
                 append_file.write(data)
@@ -384,6 +400,8 @@ class HashJoin:
                     hashed_list[num] = []
                     append_file.close()  # close the file
         for i in range(self.m):
+            if i not in hashed_list:
+                continue
             append_file = open(self.right_relation + str(i), 'a')
             for data in hashed_list[i]:
                 append_file.write(data)
@@ -397,6 +415,10 @@ class HashJoin:
         # since we have hashed into self.m buckets, we need to iterate over each of them
         for i in range(self.m):
             # get the sizes of R_i and S_i and load the smaller one into the memory
+            if not os.path.isfile(self.left_relation + str(i)):
+                continue
+            if not os.path.isfile(self.right_relation + str(i)):
+                continue
             left_file_size = os.stat(self.left_relation + str(i)).st_size
             right_file_size = os.stat(self.right_relation + str(i)).st_size
             if left_file_size < right_file_size:
@@ -479,11 +501,14 @@ if __name__ == '__main__':
     right_file = sys.argv[2]
     which = sys.argv[3]
     memory_buffers = int(sys.argv[4])
-    if os.path.isfile(left_file+'_'+right_file+'_join.txt'):
-        file = open(left_file+'_'+right_file+'_join.txt', 'w')
+    left = os.path.basename(left_file)
+    right = os.path.basename(right_file)
+    out_file = left + '_' + right + '_join.txt'
+    if os.path.isfile(out_file):
+        file = open(out_file, 'w')
         file.truncate()
     else:
-        file = open(left_file+'_'+right_file+'_join.txt', 'w+')
+        file = open(out_file, 'w+')
         file.close()
     # to get the tuple size we need to read one line from the file
     st_time = time.time()
