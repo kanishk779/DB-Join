@@ -1,4 +1,5 @@
 import os
+import time
 import math
 import sys
 
@@ -24,7 +25,7 @@ class MergeJoin:
         self.left_sublist_read = []  # how much data we have actually read from each left sublist
         self.right_sublist_read = []  # how much data we have actually read from each right sublist
         self.get_next_index = 0
-        self.read_file = open('output.txt', 'r')
+        self.read_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'r')
         self.FOUND = True
         self.find_tuple_size()
 
@@ -37,7 +38,7 @@ class MergeJoin:
         x.close()
 
     def write_out(self):
-        out_file = open('output.txt', 'a')
+        out_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'a')
         for line in self.buffer:
             out_file.write(line)
         self.buffer = []
@@ -139,7 +140,6 @@ class MergeJoin:
         self.initialise_list()
         left_not_processed = [1] * self.left_sublist
         right_not_processed = [1] * self.right_sublist
-        cnt = 0
         while any(left_not_processed) and any(right_not_processed):
             xx = ""
             left_min = "~"  # since it is the largest character
@@ -298,7 +298,7 @@ class HashJoin:
         self.left_relation = left_relation  # name of left relation
         self.right_relation = right_relation  # name of right relation
         self.get_next_index = 0
-        self.read_file = open('output.txt', 'r')
+        self.read_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'r')
         self.buffer = []  # one extra buffer for output purpose, list of strings
         self.FOUND = True
         self.find_tuple_size()
@@ -312,7 +312,7 @@ class HashJoin:
         x.close()
 
     def write_out(self):
-        out_file = open('output.txt', 'a')
+        out_file = open(self.left_relation + '_' + self.right_relation + '_join.txt', 'a')
         for line in self.buffer:
             out_file.write(line)
         self.buffer = []
@@ -335,13 +335,6 @@ class HashJoin:
         self.read_file.close()
 
     def open(self):
-        left_file_size = os.stat(self.left_relation).st_size
-        right_file_size = os.stat(self.right_relation).st_size
-        block_left = (left_file_size + self.tuples*self.left_tuple_size - 1) // (self.tuples * self.left_tuple_size)
-        block_right = (right_file_size + self.tuples*self.right_tuple_size - 1) // (self.tuples * self.right_tuple_size)
-        if block_left + block_right >= (self.m * self.m):
-            raise NotImplementedError('Not possible as B(R) + B(S) >= M^2')
-
         file = open(self.left_relation, 'r')
         hashed_list = dict()
         while True:
@@ -399,7 +392,7 @@ class HashJoin:
         file.close()
 
     def join(self):
-        # we can assume that the R_i or S_i will fill in the main memory
+        # we can assume that the R_i or S_i will fill in the main memory (This is the assumption)
         # read page 294
         # since we have hashed into self.m buckets, we need to iterate over each of them
         for i in range(self.m):
@@ -486,16 +479,24 @@ if __name__ == '__main__':
     right_file = sys.argv[2]
     which = sys.argv[3]
     memory_buffers = int(sys.argv[4])
-    temp_file2 = open('temp2.txt', 'r+')
-    temp_file2.truncate(0)
+    if os.path.isfile(left_file+'_'+right_file+'_join.txt'):
+        file = open(left_file+'_'+right_file+'_join.txt', 'w')
+        file.truncate()
+    else:
+        file = open(left_file+'_'+right_file+'_join.txt', 'w+')
+        file.close()
     # to get the tuple size we need to read one line from the file
+    st_time = time.time()
     if which == 'sort':
-        merge_join = MergeJoin(memory_buffers, left_file, right_file, 40)
+        merge_join = MergeJoin(memory_buffers, left_file, right_file, 100)
         merge_join.open()
         merge_join.join()
         merge_join.close()
     else:
-        hash_join = HashJoin(memory_buffers, left_file, right_file, 40)
+        hash_join = HashJoin(memory_buffers, left_file, right_file, 100)
         hash_join.open()
         hash_join.join()
         hash_join.close()
+    end_time = time.time()
+    time_spent = end_time - st_time
+    print(time_spent)
