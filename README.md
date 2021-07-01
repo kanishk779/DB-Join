@@ -1,5 +1,5 @@
-# sturdy-spoon
-Iterators for Database
+# DB-Join
+Iterator for joined relation (DBMS)
 
 This was the project done as part of the Data-Systems course (Advanced DBMS) in
 6th semester. Given M blocks of main memory available and two large relations
