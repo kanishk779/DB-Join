@@ -6,6 +6,9 @@ This was the project done as part of the Data-Systems course (Advanced DBMS) in
 R(X,Y) and S(Y,Z) the objective is to develop iterators for join of these relations.
 There are two ways of joining relations that are used.
 
+#### Join Condition
+R.Y == S.Y
+
 ## Merge-Sort Join
 The first step is to bring the block size chunk of data from relation R(X,Y) and
 sort it in memory based on the Y attribute. Then the sorted block is written back to the disk. This way
@@ -41,17 +44,16 @@ output all the pairs with common value of Y attribute.
 Value of mod is provided by the user, it signifies the number of buckets. A
 prime value (Here 31) is considered for the hash function.
 ```
-	def give_hash(self, y):
-        # returns an integer
-        power_p = 1
-        p = 31
-        mod = self.m
-        hash_val = 0
-        for char in y:
-            hash_val = (hash_val + (ord(char) - 96)*power_p) % mod
-            power_p = (power_p * p) % mod
-
-        return hash_val
+def give_hash(self, y):
+	# returns an integer
+	power_p = 1
+	p = 31
+	mod = self.m
+	hash_val = 0
+	for char in y:
+		hash_val = (hash_val + (ord(char) - 96)*power_p) % mod
+        power_p = (power_p * p) % mod
+	return hash_val
 ```
 
 ## How to run
@@ -61,5 +63,7 @@ Usage:
 java -jar JoinGenerator.jar noOfrecordsinR noOfrecordsinS sizeofX sizeofY sizeofZ
 ```
 Output: 
-Two files will be generated inputR and the inputS
-column data separated by a single space.
+Two files will be generated inputR and the inputS column data separated by a single space.
+```
+python3 main.py PathToR PathToS TypeOfJoin MainMemory
+```

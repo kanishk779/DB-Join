@@ -360,10 +360,12 @@ class HashJoin:
                 temp = line[:-1]
                 x, y = temp.split(' ')
                 num = self.give_hash(y)
+                # for each line put it into the corresponding bucket
                 if num in hashed_list:
                     hashed_list[num].append(line)
                 else:
                     hashed_list[num] = [line]
+                # if the main memory is filled, empty it and reuse it.
                 if len(hashed_list[num]) == self.tuples:
                     append_file = open(self.left_relation + str(num), 'a')
                     for data in hashed_list[num]:
